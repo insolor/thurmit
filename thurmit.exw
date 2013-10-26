@@ -1,0 +1,125 @@
+include std/map.e
+include std/sequence.e
+include std/pretty.e
+include std/text.e
+include std/get.e
+include std/datetime.e
+
+constant cmd = command_line()
+
+if length(cmd)<3 then
+    abort(-1)
+end if
+atom fn_trm = open(cmd[3],"r")
+-- atom fn_log = open("log.txt","a")
+atom fn_log = open("NUL","a")
+-- atom fn_log = 1
+eu:puts(fn_log, repeat('=',78)&'\n')
+eu:puts(fn_log, datetime:format(now(),"%d.%m.%Y %H:%M:%S\n"))
+eu:printf(fn_log, "Opening %s\n", {cmd[3]})
+if fn_trm < 0 then
+    eu:puts(fn_log, "Not found\n")
+    close(fn_log)
+    abort(-1)
+end if
+
+map thurmit = map:new()
+
+sequence pretty_options = PRETTY_DEFAULT
+pretty_options[DISPLAY_ASCII] = 2
+pretty_options[MAX_ASCII] = 255
+pretty_options[LINE_BREAKS] = -1
+
+-- Loading
+while 1 do
+    object line = gets(fn_trm)
+    if atom(line) then
+        exit
+    end if
+    integer comment = find(';',line)
+    if comment then
+        line = line[1..comment-1]
+    end if
+    line = remove_all({}, split_any(trim(line), " \t"))
+    if length(line)<4 then
+        continue
+    end if
+    if has(thurmit, line[1..2]) then
+        eu:puts(fn_log, "Already has ")
+        pretty_print(fn_log, line[1..2], pretty_options)
+        close(fn_log)
+        abort(1)
+    end if
+    for i = 2 to 4 do
+        integer val = defaulted_value(line[i],-100)
+        if val = -100 then
+            eu:printf(fn_log,"Invalid value: \"%s\"\n",{line[i]})
+            close(fn_log)
+            abort(1)
+        end if
+        line[i] = val
+    end for
+    put(thurmit, line[1..2], line[3..5])
+    eu:puts(fn_log, "Rule loaded: ")
+    pretty_print(fn_log, {line[1..2], line[3..5]},pretty_options)
+    eu:puts(fn_log, '\n')
+end while
+close(fn_trm)
+
+-- Simulation
+include ../dos_rescue.ew
+
+graphics_mode(259)
+
+constant vc = video_config()
+constant width = vc[VC_XPIXELS], height = vc[VC_YPIXELS]
+sequence field = repeat(repeat(0,width),height)
+integer row = floor(height/2), col = floor(width/2)
+-- integer direction = 1 -- east
+integer direction = 0 -- north
+sequence state = "A"
+constant sinus = {0,1,0,-1}, cosinus = {1,0,-1,0}
+constant dirs = {"North","East","South","West"}
+
+integer i = 1
+eu:puts(fn_log, repeat('-',78)&'\n')
+eu:puts(fn_log,"Starting simulation\n")
+while has(thurmit, {state, field[row][col]}) do
+    eu:printf(fn_log, "Iteration: %d\n", i)
+    eu:printf(fn_log, "Position: %d\\%d    Current state: %s    Color: %d    Direction: %s\n",
+        {row,col,state,field[row][col],dirs[direction+1]})
+    sequence action = map:get(thurmit, {state, field[row][col]})
+    if field[row][col] = action[1] then
+        eu:puts(fn_log, "Leave color the same\n")
+    else
+        eu:printf(fn_log, "Change color to %d\n", action[1])
+    end if
+    field[row][col] = action[1]
+    pixel(action[1],{col-1,row-1})
+    task_yield()
+    switch action[2] do
+        case -1 then
+            eu:puts(fn_log,"Turn left and step forward\n")
+        case 0 then
+            eu:puts(fn_log,"Step forward\n")
+        case 1 then
+            eu:puts(fn_log,"Turn right and step forward\n")
+    end switch
+    direction += action[2]
+    direction = remainder(direction+4, 4)
+    col += cosinus[direction+1]
+    row += sinus[direction+1]
+    if col<1 or col>width or row<1 or row>height then
+        eu:puts(fn_log,"Moving out of bounds. Stopped.\n")
+        close(fn_log)
+        exit
+    end if
+    eu:printf(fn_log, "New state: %s\n", {action[3]})
+    state = action[3]
+    eu:puts(fn_log, repeat('-',78)&'\n')
+    i += 1
+end while
+
+wait_key()
+
+graphics_mode(-1)
