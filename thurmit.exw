@@ -89,7 +89,8 @@ constant dirs = {"North","East","South","West"}
 integer i = 1
 eu:puts(fn_log, repeat('-',78)&'\n')
 eu:puts(fn_log,"Starting simulation\n")
-while has(thurmit, {state, field[row][col]}) do
+set_delay(0)
+while get_key()=-1 and has(thurmit, {state, field[row][col]}) do
     eu:printf(fn_log, "Iteration: %d\n", i)
     eu:printf(fn_log, "Position: %d\\%d    Current state: %s    Color: %d    Direction: %s\n",
         {row,col,state,field[row][col],dirs[direction+1]})
