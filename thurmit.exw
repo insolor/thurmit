@@ -4,22 +4,27 @@ include std/pretty.e
 include std/text.e
 include std/get.e
 include std/datetime.e
+-- include std/console.e
 
 constant cmd = command_line()
-
+sequence filename
 if length(cmd)<3 then
-    abort(-1)
+    eu:puts(1,"Enter filename: ")
+    filename = trim_tail(eu:gets(0))
+else
+    filename = cmd[3]
 end if
-atom fn_trm = open(cmd[3],"r")
+atom fn_trm = open(filename,"r")
 -- atom fn_log = open("log.txt","a")
 atom fn_log = open("NUL","a")
 -- atom fn_log = 1
 eu:puts(fn_log, repeat('=',78)&'\n')
 eu:puts(fn_log, datetime:format(now(),"%d.%m.%Y %H:%M:%S\n"))
-eu:printf(fn_log, "Opening %s\n", {cmd[3]})
+eu:printf(fn_log, "Opening %s\n", {filename})
 if fn_trm < 0 then
-    eu:puts(fn_log, "Not found\n")
+    eu:puts(1, "File not found\n")
     close(fn_log)
+    eu:getc(0)
     abort(-1)
 end if
 
