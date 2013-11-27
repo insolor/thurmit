@@ -48,6 +48,8 @@ while 1 do
     line = remove_all({}, split_any(trim(line), " \t"))
     if length(line)<4 then
         continue
+    elsif length(line)<5 then
+        line = append(line, line[1])
     end if
     if has(thurmit, line[1..2]) then
         eu:puts(fn_log, "Already has ")
